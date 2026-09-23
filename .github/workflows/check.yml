@@ -1,0 +1,25 @@
+name: check
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit tests
+        run: python -m unittest discover -s tests -t . -v
+      - name: site/ is up to date with generate.py
+        run: |
+          python -m catalog.build
+          if [ -n "$(git status --porcelain -- site/)" ]; then
+            git status --porcelain -- site/
+            echo "::error::site/ is stale. Run 'python3 -m catalog.build' locally and commit site/."
+            exit 1
+          fi
