@@ -103,6 +103,48 @@ class PublishTests(unittest.TestCase):
         with self.assertRaises(BuildError):
             publish(b"<html>", b"[]", self.site, T0)
 
+    def test_interrupted_build_is_repaired_on_the_next_run(self):
+        # Publish version A (baseline)
+        a = catalog_bytes("A")
+        publish(*a, self.site, T0)
+        manifest_a = self.manifest()
+        content_version_a = manifest_a["contentVersion"]
+
+        # Publish version B (simulates first attempt)
+        b = catalog_bytes("B")
+        publish(*b, self.site, T0 + timedelta(hours=1))
+        manifest_b = self.manifest()
+        content_version_b = manifest_b["contentVersion"]
+        history_after_b = json.loads((self.site / "history.json").read_text(encoding="utf-8"))
+
+        # Simulate crash: overwrite manifest.json with A's manifest,
+        # but leave history.json with B first (both exist, but they're inconsistent).
+        (self.site / "manifest.json").write_text(json.dumps(manifest_a, indent=2) + "\n", encoding="utf-8")
+
+        # Now publish B again; it should repair the inconsistency.
+        result = publish(*b, self.site, T0 + timedelta(hours=2))
+
+        # Should return True because manifest.json had A's contentVersion,
+        # not B's (inconsistent state).
+        self.assertTrue(result, "interrupted build should be detected and repaired")
+
+        # Manifest should now have B's contentVersion (the newer content).
+        repaired_manifest = self.manifest()
+        self.assertEqual(repaired_manifest["contentVersion"], content_version_b)
+
+        # generatedAt should reflect the repair attempt time (T0 + 2 hours).
+        self.assertEqual(repaired_manifest["generatedAt"], "2026-09-23T12:00:00Z")
+
+        # History should not have duplicate contentVersions.
+        history = json.loads((self.site / "history.json").read_text(encoding="utf-8"))
+        content_versions = [m["contentVersion"] for m in history]
+        self.assertEqual(len(content_versions), len(set(content_versions)), "history should not have duplicate contentVersions")
+
+        # Every file referenced in manifest should exist.
+        for key in ("taxonomy", "recipes"):
+            file_path = self.site / repaired_manifest[key]["path"]
+            self.assertTrue(file_path.exists(), f"{file_path.name} should exist on disk")
+
 
 if __name__ == "__main__":
     unittest.main()

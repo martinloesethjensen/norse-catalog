@@ -51,10 +51,14 @@ def publish(taxonomy_bytes: bytes, recipes_bytes: bytes, site_v1: Path, now: dat
     tax_sha, rec_sha = _sha256(taxonomy_bytes), _sha256(recipes_bytes)
     content_version = _sha256((tax_sha + rec_sha).encode("ascii"))[:8]
 
-    history_path = site_v1 / "history.json"
-    history = json.loads(history_path.read_text(encoding="utf-8")) if history_path.exists() else []
-    if history and history[0]["contentVersion"] == content_version:
-        return False
+    # Check manifest.json (source of truth) instead of history.json.
+    # If a build is interrupted between writing history.json and manifest.json,
+    # manifest.json remains the authoritative record of what's actually published.
+    manifest_path = site_v1 / "manifest.json"
+    if manifest_path.exists():
+        existing_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if existing_manifest["contentVersion"] == content_version:
+            return False
 
     manifest = {
         "schemaVersion": SCHEMA_VERSION,
@@ -68,6 +72,11 @@ def publish(taxonomy_bytes: bytes, recipes_bytes: bytes, site_v1: Path, now: dat
     (site_v1 / manifest["taxonomy"]["path"]).write_bytes(taxonomy_bytes)
     (site_v1 / manifest["recipes"]["path"]).write_bytes(recipes_bytes)
 
+    # Load and deduplicate history before prepending new manifest.
+    # This ensures interrupted builds don't create duplicate entries.
+    history_path = site_v1 / "history.json"
+    history = json.loads(history_path.read_text(encoding="utf-8")) if history_path.exists() else []
+    history = [m for m in history if m["contentVersion"] != content_version]
     history = [manifest] + history[: KEEP_VERSIONS - 1]
     keep = {m[k]["path"] for m in history for k in ("taxonomy", "recipes")}
     for path in site_v1.iterdir():
