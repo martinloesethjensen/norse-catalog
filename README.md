@@ -23,8 +23,27 @@ Content that passes validation but is wrong (typo, bad recipe):
 Never delete files from `site/v1/` by hand — the build retains the last 3 versions so a
 CDN-cached manifest never points at a missing file.
 
+## Manifest signing
+
+The publish workflow signs `manifest.json` with an Ed25519 key and publishes
+`manifest.json.sig` next to it (base64 of the signature over the exact manifest bytes).
+The apps reject any manifest whose signature doesn't verify against a public key they
+ship with, so controlling the host or the domain is not enough to change the catalog.
+
+- Private key: the `CATALOG_SIGNING_KEY` secret on the `github-pages` environment.
+  Keep that environment's deployment branches limited to `main`.
+- Public key: `keys/manifest-signing.pub.pem`. The publish job refuses to deploy if the
+  secret doesn't match it.
+- The signature is created in CI only and never committed (`site/v1/manifest.json.sig`
+  is gitignored).
+
+**Rotating the key:** run `scripts/new-signing-key.sh` (needs OpenSSL 3). Add the printed
+app key to the apps' trusted keys and ship a release **before** switching the secret and
+committing the new `.pub.pem`. Remove the old key from the apps a release later.
+
 ## Guarantees the apps rely on
 
 - `manifest.json` schema is fixed for `/v1/`; breaking changes go to `/v2/`.
 - Hashed files are immutable once published.
 - Everything published has passed `catalog/validate.py`.
+- Every published `manifest.json` has a `manifest.json.sig` from the signing key.
