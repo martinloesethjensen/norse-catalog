@@ -140,5 +140,23 @@ class ClassicSpecTests(unittest.TestCase):
             self.assertIn("Cherry Liqueur", ingredient_names(name), name)
 
 
+class CoverageTests(unittest.TestCase):
+    """Every bottle should unlock something, or Buy next can never suggest it usefully."""
+
+    def test_every_liqueur_and_one_off_spirit_is_used_by_a_recipe(self):
+        # Gin, rum, whiskey, tequila and brandy styles also work as same-family
+        # substitutes, so only bottles nothing else can stand in for must have a recipe.
+        used = {generate.uid("style:" + i[0]) for r in generate.RECIPES for i in r[7]}
+        unused = [style[1] for cat_slug, _, families in generate.TAXONOMY for fam_slug, _, styles in families
+                  for style in styles
+                  if (cat_slug == "liqueur" or fam_slug == "other_spirits") and generate.uid("style:" + style[0]) not in used]
+        self.assertEqual(unused, [])
+
+    def test_bottles_from_issue_2_unlock_several_recipes(self):
+        for bottle in ("Elderflower Liqueur", "Sloe Gin", "Cynar", "Tonic Water"):
+            users = [n for n in RECIPES if bottle in ingredient_names(n)]
+            self.assertGreaterEqual(len(users), 3, f"{bottle}: {users}")
+
+
 if __name__ == "__main__":
     unittest.main()
