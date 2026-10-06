@@ -1101,10 +1101,19 @@ TOP_ML_BY_GLASS = {
 }
 
 # Bitters, seasonings and muddled herbs are concentrated: a dash or a leaf
-# tastes like far more than its volume.
-CONCENTRATED_SLUGS = {"angostura_bitters", "peychauds_bitters", "orange_bitters", "worcestershire", "hot_sauce",
-                      "fresh_mint", "fresh_basil", "fresh_rosemary"}
-CONCENTRATED_POTENCY = 5.0
+# tastes like far more than its volume. Bitters stay below herbs so a
+# bitters-led drink (Trinidad Sour) doesn't flatten every other drink's
+# bitterness once the app scales notes against the catalog's maximum.
+POTENCY_BY_SLUG = {
+    "angostura_bitters": 3.0, "peychauds_bitters": 3.0, "orange_bitters": 3.0,
+    "worcestershire": 3.0, "hot_sauce": 3.0,
+    "fresh_mint": 5.0, "fresh_basil": 5.0, "fresh_rosemary": 5.0,
+}
+
+# A float sits on top and a rinse coats the glass: both reach the nose first,
+# so they flavour the drink more than their volume (the Penicillin's Islay float).
+AROMATIC_PREPS = ("float", "rinse")
+AROMATIC_WEIGHT = 2.0
 
 # Hot water a recipe tops with that isn't a cabinet ingredient.
 EXTRA_WATER_ML = {"Hot Toddy": 90.0, "Hot Buttered Rum": 120.0}
@@ -1166,7 +1175,8 @@ def compute_recipe_profile(name, glass, method, ingredients, style_lookup):
     for slug, amount, prep in required:
         prof = style_lookup[slug][3]
         ml = amount_ml(amount, prep, glass, top_count)
-        weight = ml * (CONCENTRATED_POTENCY if slug in CONCENTRATED_SLUGS else 1.0)
+        aromatic = prep is not None and any(p in prep for p in AROMATIC_PREPS)
+        weight = ml * POTENCY_BY_SLUG.get(slug, 1.0) * (AROMATIC_WEIGHT if aromatic else 1.0)
         total_weight += weight
         for d in DIMS:
             acc[d] += prof[d] * weight

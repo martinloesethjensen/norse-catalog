@@ -95,6 +95,16 @@ class FlavourTests(unittest.TestCase):
     def test_muddled_herbs_register(self):
         self.assertGreater(RECIPES["Mojito"]["flavorProfile"]["herbal"], 0.1)
 
+    def test_a_float_flavours_more_than_its_volume(self):
+        # 7.5ml of Islay on 97ml of drink: by volume alone the smoke would be ~0.16.
+        self.assertGreaterEqual(RECIPES["Penicillin"]["flavorProfile"]["smokiness"], 0.2)
+
+    def test_a_bitters_led_drink_does_not_dwarf_a_negroni(self):
+        trinidad = RECIPES["Trinidad Sour"]["flavorProfile"]["bitterness"]
+        negroni = RECIPES["Negroni"]["flavorProfile"]["bitterness"]
+        self.assertGreater(trinidad, negroni)
+        self.assertGreaterEqual(negroni / trinidad, 0.67, "the app scales notes by the catalog maximum")
+
 
 class ClassicSpecTests(unittest.TestCase):
     """Guards against single-bottle stand-ins creeping back into classic specs."""
