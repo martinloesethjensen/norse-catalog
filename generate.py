@@ -1220,28 +1220,38 @@ AROMATIC_WEIGHT = 2.0
 EXTRA_WATER_ML = {"Hot Toddy": 90.0, "Hot Buttered Rum": 120.0}
 
 
-def amount_ml(amount: str, prep, glass: str, top_count: int) -> float:
-    """Approximate millilitres for an amount string such as "22ml", "2 dash" or "top"."""
+# Units published in each ingredient's structured `quantity` + `unit` (norse-mixology#4).
+# "top" has no quantity: it means "fill the glass".
+UNITS = ("ml", "dash", "tsp", "pinch", "leaf", "sprig", "piece", "top")
+_UNIT_WORDS = {"dash": "dash", "tsp": "tsp", "pinch": "pinch", "leaves": "leaf", "sprig": "sprig",
+               "": "piece", "wedge": "piece", "slices": "piece"}
+
+
+def parse_amount(amount: str):
+    """("22ml" → (22.0, "ml")), ("2 dash" → (2.0, "dash")), ("top" → (None, "top")), ("1" → (1.0, "piece"))."""
     text = amount.strip().lower()
     if text == "top":
-        return TOP_ML_BY_GLASS[glass] / top_count
-    number, _, unit = text.partition(" ")
+        return None, "top"
+    number, _, word = text.partition(" ")
     if number.endswith("ml"):
-        return float(number[:-2])
-    qty = float(number)
-    if unit == "dash":
-        return qty * DASH_ML
-    if unit == "tsp":
-        return qty * TSP_ML
-    if unit == "pinch":
-        return qty * PINCH_ML
-    if unit == "leaves":
-        return qty * LEAF_ML
-    if unit == "sprig":
-        return qty * SPRIG_ML
-    assert unit in ("", "wedge", "slices"), f"unknown amount unit in {amount!r}"
+        assert word == "", f"unexpected text after ml in {amount!r}"
+        return float(number[:-2]), "ml"
+    assert word in _UNIT_WORDS, f"unknown amount unit in {amount!r}"
+    return float(number), _UNIT_WORDS[word]
+
+
+def amount_ml(amount: str, prep, glass: str, top_count: int) -> float:
+    """Approximate millilitres for an amount string such as "22ml", "2 dash" or "top"."""
+    quantity, unit = parse_amount(amount)
+    if unit == "top":
+        return TOP_ML_BY_GLASS[glass] / top_count
+    if unit == "ml":
+        return quantity
+    per_unit = {"dash": DASH_ML, "tsp": TSP_ML, "pinch": PINCH_ML, "leaf": LEAF_ML, "sprig": SPRIG_ML}
+    if unit in per_unit:
+        return quantity * per_unit[unit]
     muddled = prep is not None and any(p in prep for p in MUDDLED_PREPS)
-    return qty * (MUDDLED_UNIT_ML if muddled else GARNISH_UNIT_ML)
+    return quantity * (MUDDLED_UNIT_ML if muddled else GARNISH_UNIT_ML)
 
 
 def dilution_ratio(method: str, glass: str, abv_fraction: float) -> float:
@@ -1337,9 +1347,12 @@ def build_recipes(style_lookup):
         for (slug, amount, prep, optional, sub) in ingredients:
             assert slug in style_lookup, f"{name}: unknown ingredient slug {slug}"
             style_id, *_ = style_lookup[slug]
+            quantity, unit = parse_amount(amount)
             ingredient_objs.append({
                 "ingredientStyleId": style_id,
                 "amount": amount,
+                "quantity": quantity,
+                "unit": unit,
                 "preparation": prep,
                 "isOptional": optional,
                 "substituteNotes": sub,

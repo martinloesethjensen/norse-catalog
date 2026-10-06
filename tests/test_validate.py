@@ -79,6 +79,21 @@ class ValidateTests(unittest.TestCase):
         errors = validate(["oops"], [42])
         self.assertTrue(errors)
 
+    def test_unknown_unit_is_rejected(self):
+        taxonomy, recipes = minimal_catalog()
+        recipes[0]["ingredients"][0]["unit"] = "cup"
+        self.assertInvalid(taxonomy, recipes, "unit 'cup'")
+
+    def test_quantity_must_be_positive(self):
+        taxonomy, recipes = minimal_catalog()
+        recipes[0]["ingredients"][0]["quantity"] = 0
+        self.assertInvalid(taxonomy, recipes, "quantity must be a positive number")
+
+    def test_top_has_no_quantity(self):
+        taxonomy, recipes = minimal_catalog()
+        recipes[0]["ingredients"][0].update(unit="top", quantity=60)
+        self.assertInvalid(taxonomy, recipes, "quantity must be null when unit is top")
+
     def test_real_generated_catalog_is_valid(self):
         with tempfile.TemporaryDirectory() as tmp:
             subprocess.run([sys.executable, str(REPO / "generate.py"), tmp],
