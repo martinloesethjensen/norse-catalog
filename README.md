@@ -1,7 +1,10 @@
 # norse-catalog
 
-Public ingredient taxonomy and recipe catalog for the Norse Mixology apps, published to
-`https://martinloesethjensen.github.io/norse-catalog/v1/manifest.json`.
+Public ingredient taxonomy and recipe catalog for the Norse Mixology apps, published with
+GitHub Pages and read by the apps from `https://martinloeseth.dev/norse-catalog/v1/manifest.json`.
+
+Use the `martinloeseth.dev` URL, not `martinloesethjensen.github.io`: the custom domain makes
+the `github.io` address redirect to plain HTTP, which iOS App Transport Security blocks.
 
 ## Changing the catalog
 
