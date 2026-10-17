@@ -37,7 +37,7 @@ _RECIPES = [{
     "id": RECIPE, "name": "Gin Rickey", "description": "Gin and lime.",
     "glassType": "highball", "method": "build",
     "ingredients": [
-        {"ingredientStyleId": STYLE_A, "amount": "50ml", "preparation": None,
+        {"ingredientStyleId": STYLE_A, "amount": "50ml", "quantity": 50.0, "unit": "ml", "preparation": None,
          "isOptional": False, "substituteNotes": None},
     ],
     "steps": ["Build over ice."],

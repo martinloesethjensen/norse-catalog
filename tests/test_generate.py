@@ -49,6 +49,29 @@ class AmountTests(unittest.TestCase):
             generate.amount_ml("1 cup", None, "rocks", 1)
 
 
+class StructuredAmountTests(unittest.TestCase):
+    def test_parse_amount(self):
+        self.assertEqual(generate.parse_amount("22ml"), (22.0, "ml"))
+        self.assertEqual(generate.parse_amount("7.5ml"), (7.5, "ml"))
+        self.assertEqual(generate.parse_amount("2 dash"), (2.0, "dash"))
+        self.assertEqual(generate.parse_amount("8 leaves"), (8.0, "leaf"))
+        self.assertEqual(generate.parse_amount("1 pinch"), (1.0, "pinch"))
+        self.assertEqual(generate.parse_amount("1"), (1.0, "piece"))
+        self.assertEqual(generate.parse_amount("3 wedge"), (3.0, "piece"))
+        self.assertEqual(generate.parse_amount("top"), (None, "top"))
+
+    def test_every_ingredient_carries_a_structured_amount(self):
+        for name, recipe in RECIPES.items():
+            for ing in recipe["ingredients"]:
+                self.assertIn(ing["unit"], generate.UNITS, name)
+                self.assertEqual(ing["quantity"] is None, ing["unit"] == "top", name)
+
+    def test_structured_amount_matches_the_display_text(self):
+        daiquiri = RECIPES["Daiquiri"]["ingredients"]
+        self.assertEqual([(i["amount"], i["quantity"], i["unit"]) for i in daiquiri],
+                         [("60ml", 60.0, "ml"), ("22ml", 22.0, "ml"), ("15ml", 15.0, "ml")])
+
+
 class DilutionTests(unittest.TestCase):
     def test_shaking_dilutes_more_than_stirring(self):
         self.assertGreater(generate.dilution_ratio("shake", "coupe", 0.3),

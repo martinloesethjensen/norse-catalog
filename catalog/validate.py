@@ -17,6 +17,7 @@ GLASS_TYPES = {"coupe", "rocks", "highball", "martini", "collins", "hurricane",
                "flute", "mug", "wineGlass"}
 METHODS = {"shake", "stir", "build", "blend", "throw"}
 DIFFICULTIES = {"easy", "medium", "advanced"}
+UNITS = {"ml", "dash", "tsp", "pinch", "leaf", "sprig", "piece", "top"}
 MAX_FILE_BYTES = 1_000_000
 
 
@@ -154,6 +155,15 @@ def validate(taxonomy, recipes) -> list:
                 errors.append(f"{iw}: amount required")
             if not isinstance(ing.get("isOptional"), bool):
                 errors.append(f"{iw}: isOptional must be a boolean")
+            # Structured amount (additive in /v1/; apps that predate it ignore both keys).
+            unit, quantity = ing.get("unit"), ing.get("quantity")
+            if unit not in UNITS:
+                errors.append(f"{iw}: unit {unit!r} is not one of {sorted(UNITS)}")
+            elif unit == "top":
+                if quantity is not None:
+                    errors.append(f"{iw}: quantity must be null when unit is top")
+            elif not _is_number(quantity) or quantity <= 0:
+                errors.append(f"{iw}: quantity must be a positive number, got {quantity!r}")
             for field in ("preparation", "substituteNotes"):
                 if ing.get(field) is not None and not isinstance(ing.get(field), str):
                     errors.append(f"{iw}: {field} must be a string or null")
